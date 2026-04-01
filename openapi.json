@@ -1,0 +1,1037 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Alert Router Service",
+    "description": "Ingests monitoring alerts, evaluates them against user-defined routing rules, and produces routed notification outputs. Visit /docs to explore the API.",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Health Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/alerts": {
+      "post": {
+        "tags": [
+          "Alerts"
+        ],
+        "summary": "Ingest Alert",
+        "operationId": "ingest_alert_alerts_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AlertCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertIngestResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Alerts"
+        ],
+        "summary": "List Alerts",
+        "operationId": "list_alerts_alerts_get",
+        "parameters": [
+          {
+            "name": "service",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Service"
+            }
+          },
+          {
+            "name": "severity",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Severity"
+            }
+          },
+          {
+            "name": "routed",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Routed"
+            }
+          },
+          {
+            "name": "suppressed",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Suppressed"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/alerts/{alert_id}": {
+      "get": {
+        "tags": [
+          "Alerts"
+        ],
+        "summary": "Get Alert",
+        "operationId": "get_alert_alerts__alert_id__get",
+        "parameters": [
+          {
+            "name": "alert_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Alert Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertIngestResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/routes": {
+      "get": {
+        "tags": [
+          "Routes"
+        ],
+        "summary": "List Routes",
+        "operationId": "list_routes_routes_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RouteResponse"
+                  },
+                  "type": "array",
+                  "title": "Response List Routes Routes Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Routes"
+        ],
+        "summary": "Upsert Route",
+        "operationId": "upsert_route_routes_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RouteUpsert"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouteUpsertResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/routes/{route_id}": {
+      "delete": {
+        "tags": [
+          "Routes"
+        ],
+        "summary": "Delete Route",
+        "operationId": "delete_route_routes__route_id__delete",
+        "parameters": [
+          {
+            "name": "route_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Route Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "boolean"
+                      }
+                    ]
+                  },
+                  "title": "Response Delete Route Routes  Route Id  Delete"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stats": {
+      "get": {
+        "tags": [
+          "Stats"
+        ],
+        "summary": "Get Stats",
+        "operationId": "get_stats_stats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/test": {
+      "post": {
+        "tags": [
+          "Test"
+        ],
+        "summary": "Test Alert",
+        "description": "Dry-run: evaluate an alert against current routes with no side effects.",
+        "operationId": "test_alert_test_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AlertCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertIngestResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reset": {
+      "post": {
+        "tags": [
+          "Reset"
+        ],
+        "summary": "Reset",
+        "description": "Clear all routes, alerts, notifications, and suppression records.",
+        "operationId": "reset_reset_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Reset Reset Post"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ActiveHours": {
+        "properties": {
+          "timezone": {
+            "type": "string",
+            "title": "Timezone"
+          },
+          "start": {
+            "type": "string",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "title": "End"
+          }
+        },
+        "type": "object",
+        "required": [
+          "timezone",
+          "start",
+          "end"
+        ],
+        "title": "ActiveHours"
+      },
+      "AlertCreate": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "critical",
+              "warning",
+              "info"
+            ],
+            "title": "Severity"
+          },
+          "service": {
+            "type": "string",
+            "title": "Service"
+          },
+          "group": {
+            "type": "string",
+            "title": "Group"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp"
+          },
+          "labels": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Labels",
+            "default": {}
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "severity",
+          "service",
+          "group",
+          "timestamp"
+        ],
+        "title": "AlertCreate"
+      },
+      "AlertEvaluationDetails": {
+        "properties": {
+          "total_routes_evaluated": {
+            "type": "integer",
+            "title": "Total Routes Evaluated"
+          },
+          "routes_matched": {
+            "type": "integer",
+            "title": "Routes Matched"
+          },
+          "routes_not_matched": {
+            "type": "integer",
+            "title": "Routes Not Matched"
+          },
+          "suppression_applied": {
+            "type": "boolean",
+            "title": "Suppression Applied"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_routes_evaluated",
+          "routes_matched",
+          "routes_not_matched",
+          "suppression_applied"
+        ],
+        "title": "AlertEvaluationDetails"
+      },
+      "AlertIngestResponse": {
+        "properties": {
+          "alert_id": {
+            "type": "string",
+            "title": "Alert Id"
+          },
+          "routed_to": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AlertRoutedTo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "suppressed": {
+            "type": "boolean",
+            "title": "Suppressed"
+          },
+          "suppression_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suppression Reason"
+          },
+          "matched_routes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Matched Routes"
+          },
+          "evaluation_details": {
+            "$ref": "#/components/schemas/AlertEvaluationDetails"
+          }
+        },
+        "type": "object",
+        "required": [
+          "alert_id",
+          "routed_to",
+          "suppressed",
+          "matched_routes",
+          "evaluation_details"
+        ],
+        "title": "AlertIngestResponse"
+      },
+      "AlertListResponse": {
+        "properties": {
+          "alerts": {
+            "items": {
+              "$ref": "#/components/schemas/AlertIngestResponse"
+            },
+            "type": "array",
+            "title": "Alerts"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "alerts",
+          "total"
+        ],
+        "title": "AlertListResponse"
+      },
+      "AlertRoutedTo": {
+        "properties": {
+          "route_id": {
+            "type": "string",
+            "title": "Route Id"
+          },
+          "target": {
+            "type": "object",
+            "title": "Target"
+          }
+        },
+        "type": "object",
+        "required": [
+          "route_id",
+          "target"
+        ],
+        "title": "AlertRoutedTo"
+      },
+      "EmailTarget": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "email"
+            ],
+            "const": "email",
+            "title": "Type"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "address"
+        ],
+        "title": "EmailTarget"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "PagerDutyTarget": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "pagerduty"
+            ],
+            "const": "pagerduty",
+            "title": "Type"
+          },
+          "service_key": {
+            "type": "string",
+            "title": "Service Key"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "service_key"
+        ],
+        "title": "PagerDutyTarget"
+      },
+      "RouteConditions": {
+        "properties": {
+          "severity": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Severity"
+          },
+          "service": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service"
+          },
+          "group": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group"
+          },
+          "labels": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Labels"
+          }
+        },
+        "type": "object",
+        "title": "RouteConditions",
+        "description": "All specified fields must match (AND semantics). Omitted fields match everything.\n\n- severity: alert.severity must be in this list.\n- service:  alert.service must match at least one entry; glob patterns supported (e.g. \"payment-*\").\n- group:    alert.group must be in this list.\n- labels:   every key-value pair here must exist in alert.labels (subset match)."
+      },
+      "RouteResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "conditions": {
+            "$ref": "#/components/schemas/RouteConditions"
+          },
+          "target": {
+            "type": "object",
+            "title": "Target"
+          },
+          "priority": {
+            "type": "integer",
+            "title": "Priority"
+          },
+          "suppression_window_seconds": {
+            "type": "integer",
+            "title": "Suppression Window Seconds"
+          },
+          "active_hours": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActiveHours"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "conditions",
+          "target",
+          "priority",
+          "suppression_window_seconds",
+          "active_hours",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "RouteResponse",
+        "description": "Full route object returned by GET endpoints."
+      },
+      "RouteStats": {
+        "properties": {
+          "total_matched": {
+            "type": "integer",
+            "title": "Total Matched"
+          },
+          "total_routed": {
+            "type": "integer",
+            "title": "Total Routed"
+          },
+          "total_suppressed": {
+            "type": "integer",
+            "title": "Total Suppressed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_matched",
+          "total_routed",
+          "total_suppressed"
+        ],
+        "title": "RouteStats"
+      },
+      "RouteUpsert": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "conditions": {
+            "$ref": "#/components/schemas/RouteConditions"
+          },
+          "target": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SlackTarget"
+              },
+              {
+                "$ref": "#/components/schemas/EmailTarget"
+              },
+              {
+                "$ref": "#/components/schemas/PagerDutyTarget"
+              },
+              {
+                "$ref": "#/components/schemas/WebhookTarget"
+              }
+            ],
+            "title": "Target",
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "email": "#/components/schemas/EmailTarget",
+                "pagerduty": "#/components/schemas/PagerDutyTarget",
+                "slack": "#/components/schemas/SlackTarget",
+                "webhook": "#/components/schemas/WebhookTarget"
+              }
+            }
+          },
+          "priority": {
+            "type": "integer",
+            "title": "Priority"
+          },
+          "suppression_window_seconds": {
+            "type": "integer",
+            "title": "Suppression Window Seconds",
+            "default": 0
+          },
+          "active_hours": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActiveHours"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "conditions",
+          "target",
+          "priority"
+        ],
+        "title": "RouteUpsert",
+        "description": "Used for POST /routes \u2014 creates or updates a route by id."
+      },
+      "RouteUpsertResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "created": {
+            "type": "boolean",
+            "title": "Created"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created"
+        ],
+        "title": "RouteUpsertResponse",
+        "description": "Response for POST /routes. created=True means new record, False means updated."
+      },
+      "SlackTarget": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "slack"
+            ],
+            "const": "slack",
+            "title": "Type"
+          },
+          "channel": {
+            "type": "string",
+            "title": "Channel"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "channel"
+        ],
+        "title": "SlackTarget"
+      },
+      "StatsResponse": {
+        "properties": {
+          "total_alerts_processed": {
+            "type": "integer",
+            "title": "Total Alerts Processed"
+          },
+          "total_routed": {
+            "type": "integer",
+            "title": "Total Routed"
+          },
+          "total_suppressed": {
+            "type": "integer",
+            "title": "Total Suppressed"
+          },
+          "total_unrouted": {
+            "type": "integer",
+            "title": "Total Unrouted"
+          },
+          "by_severity": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "By Severity"
+          },
+          "by_route": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/RouteStats"
+            },
+            "type": "object",
+            "title": "By Route"
+          },
+          "by_service": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "By Service"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_alerts_processed",
+          "total_routed",
+          "total_suppressed",
+          "total_unrouted",
+          "by_severity",
+          "by_route",
+          "by_service"
+        ],
+        "title": "StatsResponse"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "WebhookTarget": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "webhook"
+            ],
+            "const": "webhook",
+            "title": "Type"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Headers",
+            "default": {}
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "url"
+        ],
+        "title": "WebhookTarget"
+      }
+    }
+  }
+}
