@@ -1,20 +1,14 @@
-from sqlalchemy import Column, Integer, String, JSON, DateTime
+from sqlalchemy import Column, Integer, String, JSON, DateTime, Index
 
 from app.database import Base, utcnow
 
 
-class SuppressionRecord(Base):
-    """Tracks when a (route, service) pair last fired, for suppression window enforcement."""
-    __tablename__ = "suppression_records"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    route_id = Column(String, nullable=False)
-    service = Column(String, nullable=False)
-    suppressed_until = Column(DateTime, nullable=False)
-
-
 class Notification(Base):
     __tablename__ = "notifications"
+    __table_args__ = (
+        Index("ix_notification_alert_id", "alert_id"),
+        Index("ix_notification_route_id", "route_id"),
+    )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     alert_id = Column(String, nullable=False)           # matches Alert.id

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from app.constants import NOTIFICATION_SUPPRESSED
 
@@ -19,6 +19,15 @@ class AlertCreate(BaseModel):
     description: str = ""
     timestamp: datetime
     labels: dict[str, str] = {}
+
+    @field_validator("timestamp", mode="before")
+    @classmethod
+    def validate_timestamp_has_time(cls, v: Any) -> Any:
+        if isinstance(v, str) and "T" not in v:
+            raise ValueError(
+                "timestamp must be a full ISO 8601 datetime (e.g. '2026-03-25T14:30:00Z')"
+            )
+        return v
 
 
 class AlertRoutedTo(BaseModel):
@@ -43,7 +52,7 @@ class AlertIngestResponse(BaseModel):
 
     @classmethod
     def from_notification(cls, notification: Notification) -> AlertIngestResponse:
-        matched = notification.matched_route_ids
+        matched = notification.matched_route_ids or []
         return cls(
             alert_id=notification.alert_id,
             routed_to=(

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db, utcnow
-from app.models import Route
+from app.models import Route, SuppressionRecord
 from app import schemas
 
 router = APIRouter(tags=["Routes"])
@@ -39,7 +39,7 @@ def upsert_route(payload: schemas.RouteUpsert, db: Session = Depends(get_db)):
     return schemas.RouteUpsertResponse(id=route.id, created=True)
 
 
-@router.get("/routes", response_model=list[schemas.RouteResponse])
+@router.get("/routes", response_model=list[schemas.RouteResponse], status_code=200)
 def list_routes(db: Session = Depends(get_db)):
     return db.query(Route).order_by(Route.id.asc()).all()
 
@@ -49,6 +49,7 @@ def delete_route(route_id: str, db: Session = Depends(get_db)):
     route = db.get(Route, route_id)
     if not route:
         raise HTTPException(status_code=404, detail=f"Route '{route_id}' not found")
+    db.query(SuppressionRecord).filter(SuppressionRecord.route_id == route_id).delete()
     db.delete(route)
     db.commit()
     return {"id": route_id, "deleted": True}

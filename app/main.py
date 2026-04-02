@@ -6,7 +6,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from app.database import engine, Base
-from app.routers import alerts, routes, stats, test, system
+from app.routers import alerts, routes, stats, dry_run, system
 
 
 @asynccontextmanager
@@ -41,5 +41,5 @@ async def validation_exception_handler(request, exc: RequestValidationError):
 app.include_router(alerts.router)
 app.include_router(routes.router)
 app.include_router(stats.router)
-app.include_router(test.router)
+app.include_router(dry_run.router)
 app.include_router(system.router)

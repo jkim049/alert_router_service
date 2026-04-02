@@ -14,16 +14,11 @@ Routing flow (confirmed):
      Tiebreaker: alphabetically lowest route id (deterministic).
   6. Suppression is checked by the caller (requires DB state) — not handled here.
 
-NOTE — concurrency race condition: if two alerts for the same service arrive simultaneously,
-both may pass the suppression check before either writes the SuppressionRecord (check-then-act
-is not atomic). Acceptable for a single-container test environment.
-
-To harden: add a unique constraint on (route_id, service) in SuppressionRecord and wrap the
-suppression check + notification write in a single transaction. With this in place, SQLite
-serializes the writes — whichever request acquires the write lock first is routed (notification
-created), the other receives an IntegrityError on insert and is recorded as suppressed.
-Priority between the two is first-write-wins (lock acquisition order), which is
-non-deterministic but safe: exactly one notification is produced, no duplicates.
+NOTE — concurrency: SuppressionRecord has a unique constraint on (route_id, service). If two
+alerts for the same service arrive simultaneously and both pass the suppression check before
+either commits, the second INSERT raises an IntegrityError (caught in alerts.py via a savepoint)
+and is recorded as suppressed. First-write-wins order is non-deterministic but safe: exactly
+one notification is produced, no duplicates.
   7. If no routes match, the caller records the alert as "unrouted".
 
 Active hours: uses alert.timestamp, NOT server time. Format: {"timezone": "America/New_York", "start": "HH:MM", "end": "HH:MM"}.
@@ -76,8 +71,8 @@ def _is_active(route: Route, alert: Alert) -> bool:
     active_hours format: {"timezone": "America/New_York", "start": "HH:MM", "end": "HH:MM"}
 
     Handles overnight windows (start > end, e.g. "22:00" to "06:00"):
-    - Normal window (start <= end): active if start <= local_time <= end
-    - Overnight window (start > end): active if local_time >= start OR local_time <= end
+    - Normal window (start <= end): active if start <= local_time < end (end is exclusive)
+    - Overnight window (start > end): active if local_time >= start OR local_time < end (end is exclusive)
     """
     if route.active_hours is None:
         return True
@@ -94,9 +89,9 @@ def _is_active(route: Route, alert: Alert) -> bool:
     end = dt_time.fromisoformat(route.active_hours["end"])
 
     if start <= end:
-        return start <= local_time <= end
+        return start <= local_time < end
     else:
-        return local_time >= start or local_time <= end
+        return local_time >= start or local_time < end
 
 
 @dataclass
@@ -105,7 +100,7 @@ class RoutingResult:
     suppressed: bool
     suppression_applied: bool
     suppression_reason: str | None
-    notification_status: str  # "pending" | "suppressed" | "unrouted"
+    notification_status: str  # NOTIFICATION_PENDING | NOTIFICATION_SUPPRESSED | NOTIFICATION_UNROUTED
 
 
 def resolve_winner(

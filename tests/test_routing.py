@@ -226,6 +226,23 @@ def test_labels_condition_requires_subset_match(client):
     assert client.post("/alerts", json=no_match).json()["routed_to"] is None
 
 
+def test_group_condition_filters_by_value(client):
+    """A route with group=['backend'] matches backend alerts only."""
+    client.post("/routes", json=route_payload(conditions={"group": ["backend"]}))
+
+    assert client.post("/alerts", json=alert_payload(group="backend")).json()["routed_to"] is not None
+    assert client.post("/alerts", json=alert_payload(id="a2", group="infrastructure")).json()["routed_to"] is None
+    assert client.post("/alerts", json=alert_payload(id="a3", group="frontend")).json()["routed_to"] is None
+
+
+def test_labels_condition_does_not_match_alert_with_no_labels(client):
+    """A route requiring labels does not match an alert that has no labels at all."""
+    client.post("/routes", json=route_payload(conditions={"labels": {"env": "prod"}}))
+
+    r = client.post("/alerts", json=alert_payload())  # alert_payload has no labels
+    assert r.json()["routed_to"] is None
+
+
 def test_omitted_condition_fields_match_everything(client):
     """A route with empty conditions matches every alert regardless of its fields."""
     client.post("/routes", json=route_payload(conditions={}))
@@ -291,7 +308,74 @@ def test_active_hours_respects_timezone(client):
     assert outside["routed_to"] is None
 
 
+def test_active_hours_end_is_exclusive(client):
+    """An alert timestamped at exactly the end boundary is not matched — end is exclusive."""
+    client.post("/routes", json=route_payload(
+        conditions={},
+        active_hours={"timezone": "UTC", "start": "09:00", "end": "17:00"},
+    ))
+    # Exactly at end boundary — should not match
+    at_end = client.post("/alerts", json=alert_payload(timestamp="2026-03-25T17:00:00Z")).json()
+    # One second before end — should match
+    before_end = client.post("/alerts", json=alert_payload(id="a2", timestamp="2026-03-25T16:59:59Z")).json()
+
+    assert at_end["routed_to"] is None
+    assert before_end["routed_to"] is not None
+
+
+def test_overnight_active_hours_window(client):
+    """Overnight windows (start > end) match times that wrap across midnight."""
+    client.post("/routes", json=route_payload(
+        conditions={},
+        active_hours={"timezone": "UTC", "start": "22:00", "end": "06:00"},
+    ))
+    # 23:00 UTC — inside overnight window
+    inside_before_midnight = client.post("/alerts", json=alert_payload(
+        id="a1", timestamp="2026-03-25T23:00:00Z",
+    )).json()
+    # 03:00 UTC — inside overnight window (past midnight)
+    inside_after_midnight = client.post("/alerts", json=alert_payload(
+        id="a2", timestamp="2026-03-25T03:00:00Z",
+    )).json()
+    # 12:00 UTC — outside overnight window
+    outside = client.post("/alerts", json=alert_payload(
+        id="a3", timestamp="2026-03-25T12:00:00Z",
+    )).json()
+
+    assert inside_before_midnight["routed_to"] is not None
+    assert inside_after_midnight["routed_to"] is not None
+    assert outside["routed_to"] is None
+
+
 # --- Re-submission ---
+
+def test_resubmission_updates_alert_fields(client):
+    """Re-submitting an alert with the same ID persists the updated field values."""
+    client.post("/alerts", json=alert_payload(
+        severity="warning",
+        service="auth-service",
+        group="backend",
+        description="original",
+    ))
+    client.post("/alerts", json=alert_payload(
+        severity="critical",
+        service="payment-api",
+        group="infrastructure",
+        description="updated",
+    ))
+
+    # GET /alerts/{id} reflects the latest submission
+    r = client.get("/alerts/alert-1").json()
+    assert r["alert_id"] == "alert-1"
+    # Routing re-evaluated against the new fields — no route matches critical by default
+    # but the alert record itself must reflect the new values, visible via GET /alerts filters
+    alerts = client.get("/alerts?service=payment-api").json()
+    assert alerts["total"] == 1
+    assert alerts["alerts"][0]["alert_id"] == "alert-1"
+
+    alerts_old = client.get("/alerts?service=auth-service").json()
+    assert alerts_old["total"] == 0
+
 
 def test_resubmission_reevaluates_routing(client):
     """Re-submitting an alert with the same ID updates it and re-evaluates routing from scratch."""

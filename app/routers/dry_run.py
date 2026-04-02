@@ -1,10 +1,12 @@
+from datetime import datetime
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.database import get_db, utcnow
 from app.models import Alert, Route, SuppressionRecord
 from app import schemas
-from app import engine as rule_engine
+from app import evaluator as rule_engine
 
 router = APIRouter(tags=["Test"])
 
@@ -22,7 +24,7 @@ def test_alert(payload: schemas.AlertCreate, db: Session = Depends(get_db)):
     matched_ids = [r.id for r in matched]
 
     # Pre-load active suppression records for all matched routes in one query
-    active_suppressions: dict[str, object] = {}
+    active_suppressions: dict[str, datetime] = {}
     if matched_ids:
         recs = (
             db.query(SuppressionRecord)

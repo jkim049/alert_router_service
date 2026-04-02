@@ -1,0 +1,9 @@
+# SQLite database
+data/
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Pytest
+.pytest_cache/

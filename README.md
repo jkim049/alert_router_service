@@ -20,7 +20,7 @@ No other dependencies need to be installed.
 docker compose up --build
 ```
 
-The service will be available at `http://localhost:8000`.
+The service will be available at `http://localhost:8080`.
 
 **Stop the service:**
 
@@ -35,7 +35,7 @@ docker compose down
 Once the service is running, open your browser and go to:
 
 ```
-http://localhost:8000/docs
+http://localhost:8080/docs
 ```
 
 This opens an interactive API explorer where you can read documentation for every endpoint and make requests directly from the browser — no additional tools required.
@@ -64,7 +64,7 @@ This opens an interactive API explorer where you can read documentation for ever
 **1. Create a routing rule:**
 
 ```bash
-curl -X POST http://localhost:8000/routes \
+curl -X POST http://localhost:8080/routes \
   -H "Content-Type: application/json" \
   -d '{
     "id": "route-critical",
@@ -77,7 +77,7 @@ curl -X POST http://localhost:8000/routes \
 **2. Submit an alert:**
 
 ```bash
-curl -X POST http://localhost:8000/alerts \
+curl -X POST http://localhost:8080/alerts \
   -H "Content-Type: application/json" \
   -d '{
     "id": "alert-001",
@@ -91,7 +91,7 @@ curl -X POST http://localhost:8000/alerts \
 **3. Check routing statistics:**
 
 ```bash
-curl http://localhost:8000/stats
+curl http://localhost:8080/stats
 ```
 
 ---
@@ -109,7 +109,7 @@ To start fresh, either run `POST /reset` via the API or delete the `data/` direc
 The service starts with an empty database. Use the `/seed` endpoint to load sample data:
 
 ```bash
-curl -X POST http://localhost:8000/seed
+curl -X POST http://localhost:8080/seed
 ```
 
 Returns `{"seeded": true}` if data was inserted, or `{"seeded": false}` if the database already contains data (safe to call repeatedly).
@@ -135,8 +135,8 @@ Returns `{"seeded": true}` if data was inserted, or `{"seeded": false}` if the d
 **To re-seed after clearing data:**
 
 ```bash
-curl -X POST http://localhost:8000/reset
-curl -X POST http://localhost:8000/seed
+curl -X POST http://localhost:8080/reset
+curl -X POST http://localhost:8080/seed
 ```
 
 ---
@@ -244,6 +244,12 @@ The opposite choice from suppression: `active_hours` windows are evaluated again
 POSTing an alert with an ID that already exists updates the existing alert record and creates a new notification from a fresh routing evaluation.
 
 **Why**: Monitoring systems often re-emit the same alert periodically while a problem is ongoing. Re-evaluation ensures the latest route configuration applies, and the updated record is retrievable via `GET /alerts/{id}` with the most recent result.
+
+### `total_alerts_processed` counts processing events, not unique alerts
+
+The `total_alerts_processed` stat in `GET /stats` counts every routing evaluation performed, including re-submissions of the same alert ID. Re-submitting `alert-001` three times counts as three processing events.
+
+**Why**: Each submission runs the full routing pipeline and produces a new notification record. The stat reflects how much work the system has done, not how many distinct problems were reported. To count unique alerts, use the number of distinct alert IDs visible in `GET /alerts`.
 
 ### Notifications are stored records, not deliveries
 

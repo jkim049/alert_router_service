@@ -1,15 +1,16 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.constants import NOTIFICATION_PENDING, NOTIFICATION_SUPPRESSED, NOTIFICATION_UNROUTED
 from app.database import get_db, utcnow
 from app.models import Alert, Route, SuppressionRecord, Notification
 from app import schemas
-from app import engine as rule_engine
+from app import evaluator as rule_engine
 
 router = APIRouter(tags=["Alerts"])
 
@@ -39,7 +40,7 @@ def ingest_alert(payload: schemas.AlertCreate, db: Session = Depends(get_db)):
     matched_ids = [r.id for r in matched]
 
     # Pre-load active suppression records for all matched routes in one query
-    active_suppressions: dict[str, object] = {}
+    active_suppressions: dict[str, datetime] = {}
     if matched_ids:
         recs = (
             db.query(SuppressionRecord)
@@ -69,11 +70,23 @@ def ingest_alert(payload: schemas.AlertCreate, db: Session = Depends(get_db)):
         if existing_rec:
             existing_rec.suppressed_until = suppressed_until
         else:
-            db.add(SuppressionRecord(
-                route_id=winner.id,
-                service=alert.service,
-                suppressed_until=suppressed_until,
-            ))
+            try:
+                with db.begin_nested():
+                    db.add(SuppressionRecord(
+                        route_id=winner.id,
+                        service=alert.service,
+                        suppressed_until=suppressed_until,
+                    ))
+            except IntegrityError:
+                # A concurrent request already created the suppression record.
+                # Treat this alert as suppressed rather than returning a 500.
+                result.suppressed = True
+                result.suppression_applied = True
+                result.suppression_reason = (
+                    f"Alert for service '{alert.service}' on route '{winner.id}' "
+                    f"suppressed until {suppressed_until.strftime('%Y-%m-%dT%H:%M:%SZ')}"
+                )
+                result.notification_status = NOTIFICATION_SUPPRESSED
 
     routed_to = (
         schemas.AlertRoutedTo(route_id=winner.id, target=winner.target) if winner else None
@@ -106,7 +119,7 @@ def ingest_alert(payload: schemas.AlertCreate, db: Session = Depends(get_db)):
     )
 
 
-@router.get("/alerts", response_model=schemas.AlertListResponse)
+@router.get("/alerts", response_model=schemas.AlertListResponse, status_code=200)
 def list_alerts(
     service: str | None = Query(default=None),
     severity: str | None = Query(default=None),
@@ -114,6 +127,11 @@ def list_alerts(
     suppressed: bool | None = Query(default=None),
     db: Session = Depends(get_db),
 ):
+    # Filter interaction note: routed and suppressed are applied independently (AND semantics).
+    # routed=false&suppressed=true is contradictory (unrouted alerts have no route, so can't be
+    # suppressed) and will always return an empty list. This is intentional — no validation error
+    # is raised.
+
     # Subquery: latest notification ID per alert (max id = most recent)
     latest_subq = (
         db.query(
@@ -155,8 +173,11 @@ def list_alerts(
     return schemas.AlertListResponse(alerts=alerts, total=len(alerts))
 
 
-@router.get("/alerts/{alert_id}", response_model=schemas.AlertIngestResponse)
+@router.get("/alerts/{alert_id}", response_model=schemas.AlertIngestResponse, status_code=200)
 def get_alert(alert_id: str, db: Session = Depends(get_db)):
+    # Defensive check: guards against alerts with no notification (e.g. after manual DB edits
+    # or a reset that clears tables out of order). Behavior is identical to the notification
+    # check below, but kept explicitly to make the intent clear.
     if not db.get(Alert, alert_id):
         return JSONResponse(status_code=404, content={"error": "alert not found"})
 

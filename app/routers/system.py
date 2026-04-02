@@ -8,7 +8,7 @@ from app.seed import seed_db
 router = APIRouter()
 
 
-@router.get("/health", response_model=dict[str, str], tags=["Health"])
+@router.get("/health", response_model=dict[str, str], status_code=200, tags=["Health"])
 def health():
     return {"status": "ok"}
 

@@ -29,7 +29,7 @@ Each file has one responsibility. Do not mix concerns across layers:
 | Schema | `schemas/` | Pydantic models for all request bodies and responses |
 | ORM | `models/` | SQLAlchemy table definitions only — no business logic |
 | Data access | `database.py` | Engine, session factory, `get_db` dependency, `utcnow()` |
-| Business logic | `engine.py` | Rule evaluation — pure logic, no DB calls, no HTTP concerns |
+| Business logic | `evaluator.py` | Rule evaluation — pure logic, no DB calls, no HTTP concerns |
 | Seeding | `seed.py` | Sample data insertion, runs once on empty DB at startup |
 
 ### Dependency Injection for DB Sessions
@@ -286,13 +286,14 @@ flow_interview/
     __init__.py           # empty package marker
     main.py               # FastAPI app, lifespan, exception handler, router includes
     database.py           # engine, SessionLocal, Base, get_db, utcnow()
-    engine.py             # rule evaluation — pure functions, no DB/HTTP
+    evaluator.py          # rule evaluation — pure functions, no DB/HTTP
     seed.py               # seed_db() — inserts sample data on empty DB at startup
     models/
       __init__.py         # re-exports Alert, Route, Notification, SuppressionRecord
       alert.py            # Alert ORM model
       route.py            # Route ORM model
-      notification.py     # Notification + SuppressionRecord ORM models
+      notification.py     # Notification ORM model
+      suppression.py      # SuppressionRecord ORM model
     schemas/
       __init__.py         # re-exports all schemas
       alerts.py           # AlertCreate, AlertIngestResponse, AlertListResponse, ...
@@ -303,7 +304,7 @@ flow_interview/
       alerts.py           # POST /alerts, GET /alerts, GET /alerts/{id}
       routes.py           # POST /routes, GET /routes, DELETE /routes/{id}
       stats.py            # GET /stats
-      test.py             # POST /test (dry-run)
+      dry_run.py          # POST /test (dry-run, no side effects)
       system.py           # GET /health, POST /reset, POST /seed
   data/                   # SQLite DB lives here (mounted as Docker volume)
   Dockerfile

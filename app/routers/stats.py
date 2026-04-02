@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.constants import NOTIFICATION_PENDING, NOTIFICATION_SUPPRESSED
+from app.constants import NOTIFICATION_PENDING, NOTIFICATION_SUPPRESSED, NOTIFICATION_UNROUTED
 from app.database import get_db
 from app.models import Alert, Notification
 from app import schemas
@@ -10,7 +10,7 @@ from app import schemas
 router = APIRouter(tags=["Stats"])
 
 
-@router.get("/stats", response_model=schemas.StatsResponse)
+@router.get("/stats", response_model=schemas.StatsResponse, status_code=200)
 def get_stats(db: Session = Depends(get_db)):
     status_counts = (
         db.query(Notification.status, func.count(Notification.id))
@@ -20,7 +20,7 @@ def get_stats(db: Session = Depends(get_db)):
     status_map = {status: count for status, count in status_counts}
     total_routed = status_map.get(NOTIFICATION_PENDING, 0)
     total_suppressed = status_map.get(NOTIFICATION_SUPPRESSED, 0)
-    total_unrouted = status_map.get("unrouted", 0)
+    total_unrouted = status_map.get(NOTIFICATION_UNROUTED, 0)
 
     severity_rows = (
         db.query(Alert.severity, func.count(Notification.id))

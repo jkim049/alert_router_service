@@ -8,6 +8,14 @@ and the behaviour of endpoints outside the core routing flow.
 from tests.conftest import alert_payload, route_payload
 
 
+# --- GET /health ---
+
+def test_health_returns_ok(client):
+    r = client.get("/health")
+    assert r.status_code == 200
+    assert r.json() == {"status": "ok"}
+
+
 # --- POST /routes ---
 
 def test_create_route_returns_created_true(client):
@@ -53,6 +61,25 @@ def test_delete_route_removes_it_from_list(client):
     assert client.get("/routes").json() == []
 
 
+def test_delete_route_returns_correct_response_shape(client):
+    client.post("/routes", json=route_payload())
+    r = client.delete("/routes/route-1")
+    assert r.status_code == 200
+    assert r.json() == {"id": "route-1", "deleted": True}
+
+
+def test_delete_route_clears_suppression_records(client):
+    """Deleting a route must clear its suppression records so a recreated route starts fresh."""
+    client.post("/routes", json=route_payload(suppression_window_seconds=300))
+    client.post("/alerts", json=alert_payload(id="a1"))  # sets suppression
+
+    client.delete("/routes/route-1")
+    client.post("/routes", json=route_payload(suppression_window_seconds=300))
+
+    r = client.post("/alerts", json=alert_payload(id="a2")).json()
+    assert r["suppressed"] is False
+
+
 def test_delete_nonexistent_route_returns_404(client):
     r = client.delete("/routes/does-not-exist")
     assert r.status_code == 404
@@ -88,6 +115,11 @@ def test_get_alert_reflects_latest_submission(client):
 
 
 # --- GET /alerts (filtered list) ---
+
+def test_list_alerts_returns_empty_initially(client):
+    r = client.get("/alerts").json()
+    assert r == {"alerts": [], "total": 0}
+
 
 def test_list_alerts_returns_all_when_no_filters(client):
     client.post("/routes", json=route_payload(conditions={}))
@@ -201,6 +233,29 @@ def test_test_endpoint_produces_no_side_effects(client):
     assert stats["total_alerts_processed"] == 1
 
 
+# --- POST /seed ---
+
+def test_seed_returns_seeded_true_on_first_call(client):
+    r = client.post("/seed")
+    assert r.status_code == 200
+    assert r.json() == {"seeded": True}
+
+
+def test_seed_returns_seeded_false_when_data_exists(client):
+    client.post("/seed")
+    r = client.post("/seed")
+    assert r.status_code == 200
+    assert r.json() == {"seeded": False}
+
+
+def test_seed_populates_routes_and_alerts(client):
+    client.post("/seed")
+    routes = client.get("/routes").json()
+    stats = client.get("/stats").json()
+    assert len(routes) > 0
+    assert stats["total_alerts_processed"] > 0
+
+
 # --- POST /reset ---
 
 def test_reset_clears_all_routes_and_alerts(client):
@@ -228,6 +283,17 @@ def test_reset_clears_suppression_state(client):
 
 # --- GET /stats ---
 
+def test_stats_total_alerts_processed_counts_resubmissions(client):
+    """Re-submitting the same alert ID counts as a separate processing event in total_alerts_processed."""
+    client.post("/routes", json=route_payload(conditions={}))
+    client.post("/alerts", json=alert_payload(id="a1"))
+    client.post("/alerts", json=alert_payload(id="a1"))  # re-submission
+    client.post("/alerts", json=alert_payload(id="a2"))
+
+    stats = client.get("/stats").json()
+    assert stats["total_alerts_processed"] == 3
+
+
 def test_stats_are_zero_on_empty_state(client):
     stats = client.get("/stats").json()
     assert stats["total_alerts_processed"] == 0
@@ -252,6 +318,29 @@ def test_stats_counts_all_three_statuses(client):
     assert stats["total_unrouted"] == 1
 
 
+def test_stats_by_severity_counts_per_severity(client):
+    client.post("/routes", json=route_payload(conditions={}))
+    client.post("/alerts", json=alert_payload(id="a1", severity="critical"))
+    client.post("/alerts", json=alert_payload(id="a2", severity="critical"))
+    client.post("/alerts", json=alert_payload(id="a3", severity="warning"))
+
+    by_severity = client.get("/stats").json()["by_severity"]
+    assert by_severity["critical"] == 2
+    assert by_severity["warning"] == 1
+    assert "info" not in by_severity
+
+
+def test_stats_by_service_counts_per_service(client):
+    client.post("/routes", json=route_payload(conditions={}))
+    client.post("/alerts", json=alert_payload(id="a1", service="payment-api"))
+    client.post("/alerts", json=alert_payload(id="a2", service="payment-api"))
+    client.post("/alerts", json=alert_payload(id="a3", service="auth-service"))
+
+    by_service = client.get("/stats").json()["by_service"]
+    assert by_service["payment-api"] == 2
+    assert by_service["auth-service"] == 1
+
+
 def test_stats_by_route_reflects_matched_and_suppressed(client):
     client.post("/routes", json=route_payload(suppression_window_seconds=300))
     client.post("/alerts", json=alert_payload(id="a1"))  # routed
@@ -261,6 +350,26 @@ def test_stats_by_route_reflects_matched_and_suppressed(client):
     assert route_stats["total_routed"] == 1
     assert route_stats["total_suppressed"] == 1
     assert route_stats["total_matched"] == 2
+
+
+# --- Schema unit tests ---
+
+def test_from_notification_handles_null_matched_route_ids():
+    """from_notification must not crash when matched_route_ids is None (corrupted/legacy record)."""
+    from app.models.notification import Notification
+    from app.schemas.alerts import AlertIngestResponse
+
+    notif = Notification(
+        alert_id="alert-1",
+        status="pending",
+        routed_to=None,
+        matched_route_ids=None,
+        total_routes_evaluated=0,
+        suppression_reason=None,
+    )
+    result = AlertIngestResponse.from_notification(notif)
+    assert result.matched_routes == []
+    assert result.evaluation_details.routes_matched == 0
 
 
 # --- Validation (400 errors with {"error": "..."} body) ---
