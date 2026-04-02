@@ -4,6 +4,16 @@ A backend service that ingests monitoring alerts, evaluates them against user-de
 
 ---
 
+## Stack
+
+| | Choice | Why |
+|---|---|---|
+| **Language / Framework** | Python + FastAPI | FastAPI auto-generates the Swagger UI at `/docs`, which is the primary interface for non-technical users exploring the API. Pydantic handles request validation and produces clean, readable error messages out of the box. |
+| **Database** | SQLite | No separate database container — a single `docker compose up` is all that's needed. Data is stored in a file on disk and persists across container restarts without any configuration. |
+| **Container** | Docker + Compose | Keeps the entire service self-contained. Docker Desktop is the only thing that needs to be installed. |
+
+---
+
 ## Requirements
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (includes Docker Compose)
@@ -54,6 +64,7 @@ This opens an interactive API explorer where you can read documentation for ever
 | `GET` | `/alerts/{id}` | Get a specific alert and its routing result |
 | `GET` | `/stats` | View aggregate routing statistics |
 | `POST` | `/test` | Dry-run an alert without recording it |
+| `POST` | `/seed` | Load sample routes and alerts |
 | `POST` | `/reset` | Clear all data |
 | `GET` | `/health` | Health check |
 
