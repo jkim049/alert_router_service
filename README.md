@@ -159,9 +159,9 @@ pytest tests/ -v
 The generated spec is committed at `openapi.json`. To regenerate it after making API changes:
 
 ```bash
-python3 -m venv ~/myenv          # skip if venv already exists
+python3 -m venv ~/myenv
 source ~/myenv/bin/activate
-pip install -r requirements.txt  # skip if already installed
+pip install -r requirements.txt
 python3 -c "import json; from app.main import app; print(json.dumps(app.openapi(), indent=2))" > openapi.json
 ```
 
